@@ -10,6 +10,9 @@
 %pip install branca
 %pip install jinja2
 %pip install folium
+#install oswl and tabulate for WMS data
+%pip install tabulate
+%pip install OWSLib
 
 # COMMAND ----------
 
@@ -44,7 +47,7 @@ end_date = date(2018, 8, 31)
 
 # ESPG code of the preferred projection to create the buffer
 # NAD83 / Statistics Canada Lambert
-projection = 'ESPG3347'
+projection = 3347
 
 # COMMAND ----------
 
