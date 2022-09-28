@@ -1,10 +1,15 @@
 # Geospatial Pipeline Evaluation
+- [**Scaling Geospatial Work in Databricks**](#scaling-geospatial-work-in-databricks)
 - [**MSC**](#msc)
   - [**WMS-API**](#wms)
   - [**OGC-API**](#ogc)
   - [**Work To Do**](#work-to-do)
 - [**RADARSAT1**](#radarsat1)
-- [**Geospatial Work in Databricks**](#geospatial-work-in-databricks)
+
+## **Scaling Geospatial Work in Databricks**
+* The first way to efficiently implement geospatial workflows in databricks is through libraries that extend spark into geospatial work
+* Another way of efficiently using Databricks environment is by using user defined functions on spark dataframes 
+* Grid systems such as S2 and GeoHex divide spatial date into grids to better preform parallel computation
 
 ## **MSC**
  ECCC provides the Meteorological Service of Canada along with open data. This information can be found [**here**](https://eccc-msc.github.io/open-data/readme_en/). 
@@ -35,6 +40,3 @@
   
 ## **RADARSAT1**
 Using the Canadian Space Agencies Repo, scripts where moved in a Databricks environment to demonstrate RADARSAT-1 satetlite imagery. More details of this project can be found [**here**](https://github.com/ssc-sp/radarsat1-scripts).
-
-## **Geospatial Work in Databricks**
-* 
