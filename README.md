@@ -31,7 +31,9 @@
 
 #### **Testing Sparks Dataframe:**
 * This script is an example of how the databricks environment can be efficiently implemented in a way that maximizes it's benefits
-* We used the GeoMet API to 
+* We used the GeoMet API and delta tables to implement spark jobs to demonstrate the strengths of Databricks and spark
+* While comparing Pandas dataframes and spark delta tables, the spark methods of splitting, operating and joining together made runtimes longer for small files of less than 500,000 records
+  * However this can be tested on larger datasets with UDFs to test runtime differences  
 
 ### **Work To Do**
 * Create a demo of a time series map using a library such as folium
