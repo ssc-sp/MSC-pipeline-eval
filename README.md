@@ -7,9 +7,9 @@
 - [**RADARSAT1**](#radarsat1)
 
 ## **Scaling Geospatial Work in Databricks**
-* The first way to efficiently implement geospatial workflows in databricks is through libraries that extend spark into geospatial work
-* Another way of efficiently using Databricks environment is by using user defined functions on spark dataframes 
-* Grid systems such as S2 and GeoHex divide spatial date into grids to better preform parallel computation
+* The first way to efficiently implement geospatial workflows in databricks is through libraries that extend spark into geospatial work.
+* Another way of efficiently using Databricks environment is by using user defined functions on spark dataframes and delta tables.
+* Grid systems such as S2 and GeoHex divide spatial date into grids to better preform parallel computation.
 
 ## **MSC**
  ECCC provides the Meteorological Service of Canada along with open data. This information can be found [**here**](https://eccc-msc.github.io/open-data/readme_en/). 
