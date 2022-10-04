@@ -269,16 +269,18 @@ for station in stations:
         if not all_null(historical_data_df):
             # Removing any rows without water level data at the
             # end of the data frame
-            while np.isnan(historical_data_df["LEVEL"].iloc[-1]):
+            print(historical_data_df.filter("LEVEL IS NULL"))
+            while not historical_data_df.filter("LEVEL IS NULL"):
                 historical_data_df = historical_data_df.drop(
                     historical_data_df.tail(1).index
                 )
+            print(historical_data_df["DATE"])
             # Creating an index with the date in a datetime format
-            historical_data_df["DATE"] = pd.to_datetime(
-                historical_data_df["DATE"]
-            )
-            historical_data_df.set_index(["DATE"], inplace=True, drop=True)
-            historical_data_df.index = historical_data_df.index.date
+            #historical_data_df["DATE"] = pd.to_datetime(
+            #    historical_data_df["DATE"]
+            #)
+            #historical_data_df.set_index(["DATE"], inplace=True, drop=True)
+            #historical_data_df.index = historical_data_df.index.date
             # Adding the data frame to the dictionary
             hydrometric_data[station] = historical_data_df
         # If all the data is NaN, the station will be removed from the dataset
@@ -323,8 +325,8 @@ def interactive_plot(station):
     # Creation of the plot
     fig, ax = plt.subplots()
     line, = plt.plot(
-        hydrometric_data[station].index,
-        hydrometric_data[station]["LEVEL"],
+        hydrometric_data[station].select('DATE').rdd.flatMap(lambda x: x).collect(),
+        hydrometric_data[station].select('LEVEL').rdd.flatMap(lambda x: x).collect(),
         marker="o",
         label="Daily mean",
     )
@@ -428,9 +430,12 @@ def data_table(station):
     displayed_df.index = displayed_df.index.rename("Date")
     return displayed_df
 
+hydrometric_data[station_displayed_t].select(['DATE', 'LEVEL']).show()
+'''
 print(tabulate(data_table(station_displayed_t),
                headers='keys',
                tablefmt='pretty'))
+'''
 
 # COMMAND ----------
 
@@ -438,30 +443,26 @@ labels = []
 all_lat = []
 all_lon = []
 for station in stations:
-    latest_data = hydrometric_data[station].iloc[-1]
+    latest_data = hydrometric_data[station].tail(1)[0]
+    print(latest_data)
     labels.append(
         f"{hydrometric_data[station]['STATION_NAME'][0]}\n"
-        + f"Station ID: {latest_data.STATION_NUMBER}\n"
-        + f"Date: {latest_data.name}\n"
-        + f"Water level: {round(latest_data.LEVEL, 2)} m"
+        + f"Station ID: {latest_data[0]}\n"
+        + f"Date: {latest_data[1]}\n"
+        + f"Water level: {latest_data[2]} m"
     )
     all_lat.append(latest_data.LATITUDE)
     all_lon.append(latest_data.LONGITUDE)
 
 annotations = [None for label in labels]
-
+print(all_lat)
 m = folium.Map(location=[lat, long])
 feature_group = folium.FeatureGroup("Locations")
-for lat, lng, name in zip(all_lat, all_lon, labels):
-    feature_group.add_child(folium.Marker(location=[lat,lng],popup=name))
+for lt, lng, name in zip(all_lat, all_lon, labels):
+    feature_group.add_child(folium.Marker(location=[lt,lng],popup=name))
 m.add_child(feature_group)
 m
 
 # COMMAND ----------
 
 m.save('map.html')
-
-# COMMAND ----------
-
-html_map = m._repr_html_()
-print(html_map)
