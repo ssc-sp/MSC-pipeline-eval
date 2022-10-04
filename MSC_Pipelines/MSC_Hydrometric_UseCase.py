@@ -211,6 +211,97 @@ if not stations:
 
 # COMMAND ----------
 
+from pyspark.sql.types import *
+from pyspark.sql.functions import min, max
+from pyspark.sql.functions import col
+# Retrieval of hydrometric data for each station
+
+def all_null(frame):
+    nullColumns = []
+    numRows = frame.count()
+    for k in frame.columns:
+      nullRows = frame.where(col(k).isNull()).count()
+      if nullRows ==  numRows: # i.e. if ALL values are NULL
+        nullColumns.append(k)
+    if len(nullColumns) >= 1:
+        return True
+    else:
+        return False
+
+
+# Dictionary that will contain a data frame for each station with
+# the historical daily mean water levels for the time period
+hydrometric_data = {}
+
+# List of stations with no water level data
+stations_without_data = []
+
+# Data retrieval and creation of the data frames
+for station in stations:
+
+    # Retrieval of water level data
+    hydro_data = oafeat.collection_items(
+        "hydrometric-daily-mean",
+        bbox=bbox,
+        datetime=f"{start_date}/{end_date}",
+        STATION_NUMBER=station,
+    )
+    # Creation of a data frame if there is data for the chosen time period
+    if hydro_data["features"]:
+        # Creation of a dictionary in a format compatible with Pandas
+        historical_data_format = [
+            {
+                "LATITUDE": el["geometry"]["coordinates"][1],
+                "LONGITUDE": el["geometry"]["coordinates"][0],
+                **el["properties"],
+            }
+            for el in hydro_data["features"]
+        ]
+        # Creation of the schema
+        schema = StructType([StructField("STATION_NUMBER", StringType(), True), StructField("STATION_NAME", StringType(), True), StructField("DATE", StringType(), True), StructField("LEVEL", FloatType(), True), StructField("LATITUDE", FloatType(), True), StructField("LONGITUDE", FloatType(), True)])
+        # Creation of the data frame
+        historical_data_df = spark.createDataFrame(
+            historical_data_format,
+            schema,
+        )
+        historical_data_df = historical_data_df.fillna(value=np.nan)
+        # Adding the data frame to the hydrometric data dictionary
+        if not all_null(historical_data_df):
+            # Removing any rows without water level data at the
+            # end of the data frame
+            while np.isnan(historical_data_df["LEVEL"].iloc[-1]):
+                historical_data_df = historical_data_df.drop(
+                    historical_data_df.tail(1).index
+                )
+            # Creating an index with the date in a datetime format
+            historical_data_df["DATE"] = pd.to_datetime(
+                historical_data_df["DATE"]
+            )
+            historical_data_df.set_index(["DATE"], inplace=True, drop=True)
+            historical_data_df.index = historical_data_df.index.date
+            # Adding the data frame to the dictionary
+            hydrometric_data[station] = historical_data_df
+        # If all the data is NaN, the station will be removed from the dataset
+        else:
+            stations_without_data.append(station)
+    # If there is no data for the chosen time period, the station
+    # will be removed from the dataset
+    else:
+        stations_without_data.append(station)
+
+# Removing hydrometric stations without water level data from the station list
+for station in stations_without_data:
+    stations.remove(station)
+
+# Raising an error if no station is left in the list
+if not stations:
+    raise ValueError(
+        f"No water level data is available in the this {num_months}"
+        + " months period for the selected hydrometric stations."
+    )
+
+# COMMAND ----------
+
 # Creation of an interactive plot with Matplotlib
 
 # Hydrometric station to display on the plot
@@ -365,3 +456,12 @@ for lat, lng, name in zip(all_lat, all_lon, labels):
     feature_group.add_child(folium.Marker(location=[lat,lng],popup=name))
 m.add_child(feature_group)
 m
+
+# COMMAND ----------
+
+m.save('map.html')
+
+# COMMAND ----------
+
+html_map = m._repr_html_()
+print(html_map)

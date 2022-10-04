@@ -307,18 +307,13 @@ for index, timestep in enumerate(local_time):
         profit.append(cumulative_profit[index])
 
 # Create table
-profit_df = pandas.DataFrame({'Local date and time':  open_hours,
-                              'Probability (%)': probability,
-                              'Anticipated cumulative profits ($)': profit
-                              })
+columns = ['Local date and time', 'Probability', 'Anticipated cumulative profits ($)']
+profit_df = spark.createDataFrame(zip(open_hours, probability, profit), columns)
 
 # Show table
 print('Anticipated profits from umbrellas sales ' +
       'depending on precipitations probability')
-print(tabulate(profit_df,
-               headers='keys',
-               tablefmt='pretty',
-               showindex=False))
+profit_df.show()
 
 # Save in CSV format (remove # from the following lines)
 # profit_df.to_csv('profit.csv',
