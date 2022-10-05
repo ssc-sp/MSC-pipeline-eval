@@ -35,7 +35,8 @@ To best utilize the Databricks environment, is to use spark and the advantages t
 *  We ran into problems resolving dependencies with the mapping library cartopy. Specifically, the GEOS library. While this may be fixable in the environment the [**folium**](http://python-visualization.github.io/folium/) library to map the resulting data.
 * The folium library uses the leaflet.js library and can be easily implemented using python web development tools such as flask and django (example can be found [**here**](http://python-visualization.github.io/folium/flask.html))
   *  This means that web mapping [**examples**](https://eccc-msc.github.io/open-data/usage/tutorial_web-maps_en/#tutorial-building-interactive-web-maps-with-openlayers-and-leaflet) provided by ECCC can also be implemented in databricks
-*  If this script requests more data, then spark 
+*  Due to the original script which split up the data into stations with a dataframe for each station, spark underpreformed compared to the original script which was built for a single node
+    * This will be a common issue with moving scripts into the spark environment and something we will have to think about to effectively use Databricks
 
 ![alt text](MSC_Pipelines/assets/MSC_Hydrometry_UseCase_Webmap.png)
 
@@ -49,6 +50,9 @@ To best utilize the Databricks environment, is to use spark and the advantages t
 * Create a demo of a time series map using a library such as folium
 * Find a way to implement cartopy for mapping of 
   * The required step here is to install [**LibGEOS**](https://libgeos.org/) onto the cluster or the notebook
+#### **Optimization Ideas**
+* Implement all stations as a single dataframe
+* Store API items in a delta lake table
   
 ## **RADARSAT1**
 Using the Canadian Space Agencies Repo, scripts where moved in a Databricks environment to demonstrate RADARSAT-1 satetlite imagery. More details of this project can be found [**here**](https://github.com/ssc-sp/radarsat1-scripts).
