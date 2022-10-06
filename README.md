@@ -58,7 +58,8 @@ To best utilize the Databricks environment, is to use spark and the advantages t
   * However this can be tested on larger datasets with UDFs to test runtime differences  
 
 ### **Work To Do**
-* Create a demo of a time series map using a library such as folium
+* Optimize scripts using spark dataframes and delta tables
+* Better test performance by using larger dataset
 * Find a way to implement cartopy for mapping of 
   * The required step here is to install [**LibGEOS**](https://libgeos.org/) onto the cluster or the notebook
 #### **Optimization Ideas**
