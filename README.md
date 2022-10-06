@@ -4,7 +4,7 @@
   - [**WMS-API**](#wms)
     - [**Performance**](#performance)  
   - [**OGC-API**](#ogc)
-    - [**Performance**](#performance) 
+    - [**Performance**](#performance-1) 
     - [**Difficulties**](#difficulties) 
   - [**Work To Do**](#work-to-do)
     - [**Optimization Ideas**](#optimization-ideas)
