@@ -53,6 +53,7 @@ To best utilize the Databricks environment, is to use spark and the advantages t
 #### **Optimization Ideas**
 * Implement all stations as a single dataframe
 * Store API items in a delta lake table
+* Decrease the shuffle partition size
   
 ## **RADARSAT1**
 Using the Canadian Space Agencies Repo, scripts where moved in a Databricks environment to demonstrate RADARSAT-1 satetlite imagery. More details of this project can be found [**here**](https://github.com/ssc-sp/radarsat1-scripts).
