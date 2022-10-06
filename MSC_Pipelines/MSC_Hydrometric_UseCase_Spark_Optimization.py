@@ -163,20 +163,28 @@ if not stations:
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC <h3>Request Data and use GDAL to select user buffer</h3>
+# This step is used to reduce how much the dataframe is split up to increase run time
+sqlContext.sql("set spark.sql.shuffle.partitions=10")
 
 # COMMAND ----------
 
-# IGNORE! This is the original script without the implementation of spark
+# MAGIC %md
+# MAGIC <h3>Parse Data to remove empty stations and place within Dataframe</h3>
+# MAGIC <p>Note that there are three cells which preform the same </p>
+
+# COMMAND ----------
+
+# This is the spark script which uses a single spark dataframe
 # Retrieval of hydrometric data for each station
 
 # Dictionary that will contain a data frame for each station with
 # the historical daily mean water levels for the time period
-hydrometric_data = {}
+hydrometric_data = []
 
 # List of stations with no water level data
 stations_without_data = []
+
+historical_data_df = False
 
 # Data retrieval and creation of the data frames
 for station in stations:
@@ -190,7 +198,7 @@ for station in stations:
     )
     # Creation of a data frame if there is data for the chosen time period
     if hydro_data["features"]:
-        # Creation of a dictionary in a format compatible with Pandas
+        # if the dataframe hasn't been made, create it with the necessary features
         historical_data_format = [
             {
                 "LATITUDE": el["geometry"]["coordinates"][1],
@@ -199,6 +207,7 @@ for station in stations:
             }
             for el in hydro_data["features"]
         ]
+        schema = StructType([StructField("STATION_NUMBER", StringType(), True), StructField("STATION_NAME", StringType(), True), StructField("DATE", StringType(), True), StructField("LEVEL", FloatType(), True), StructField("LATITUDE", FloatType(), True), StructField("LONGITUDE", FloatType(), True)])
         # Creation of the data frame
         historical_data_df = pd.DataFrame(
             historical_data_format,
@@ -221,13 +230,16 @@ for station in stations:
                     historical_data_df.tail(1).index
                 )
             # Creating an index with the date in a datetime format
+            '''
             historical_data_df["DATE"] = pd.to_datetime(
                 historical_data_df["DATE"]
             )
             historical_data_df.set_index(["DATE"], inplace=True, drop=True)
             historical_data_df.index = historical_data_df.index.date
+            '''
             # Adding the data frame to the dictionary
-            hydrometric_data[station] = historical_data_df
+            spark_df = spark.createDataFrame(historical_data_df)
+            hydrometric_data.append(spark_df)
         # If all the data is NaN, the station will be removed from the dataset
         else:
             stations_without_data.append(station)
@@ -236,6 +248,8 @@ for station in stations:
     else:
         stations_without_data.append(station)
 
+hydrometric_data_df = reduce(DataFrame.unionAll, hydrometric_data)
+        
 # Removing hydrometric stations without water level data from the station list
 for station in stations_without_data:
     stations.remove(station)
@@ -249,104 +263,17 @@ if not stations:
 
 # COMMAND ----------
 
-# This step is used to reduce how much the dataframe is split up to increase run time
-sqlContext.sql("set spark.sql.shuffle.partitions=10")
+hydrometric_data_df.show()
 
 # COMMAND ----------
 
-# This is the Spark integrated script with no optimizations
-# Retrieval of hydrometric data for each station
-
-def all_null(frame):
-    nullColumns = []
-    numRows = frame.count()
-    for k in frame.columns:
-      nullRows = frame.where(col(k).isNull()).count()
-      if nullRows ==  numRows: # i.e. if ALL values are NULL
-        nullColumns.append(k)
-    if len(nullColumns) >= 1:
-        return True
-    else:
-        return False
-
-
-# Dictionary that will contain a data frame for each station with
-# the historical daily mean water levels for the time period
-hydrometric_data = {}
-
-# List of stations with no water level data
-stations_without_data = []
-
-# Data retrieval and creation of the data frames
-for station in stations:
-
-    # Retrieval of water level data
-    hydro_data = oafeat.collection_items(
-        "hydrometric-daily-mean",
-        bbox=bbox,
-        datetime=f"{start_date}/{end_date}",
-        STATION_NUMBER=station,
-    )
-    # Creation of a data frame if there is data for the chosen time period
-    if hydro_data["features"]:
-        # Creation of a dictionary in a format compatible with Pandas
-        historical_data_format = [
-            {
-                "LATITUDE": el["geometry"]["coordinates"][1],
-                "LONGITUDE": el["geometry"]["coordinates"][0],
-                **el["properties"],
-            }
-            for el in hydro_data["features"]
-        ]
-        # Creation of the schema
-        schema = StructType([StructField("STATION_NUMBER", StringType(), True), StructField("STATION_NAME", StringType(), True), StructField("DATE", StringType(), True), StructField("LEVEL", FloatType(), True), StructField("LATITUDE", FloatType(), True), StructField("LONGITUDE", FloatType(), True)])
-        # Creation of the data frame
-        historical_data_df = spark.createDataFrame(
-            historical_data_format,
-            schema,
-        )
-        historical_data_df = historical_data_df.fillna(value=np.nan)
-        # Adding the data frame to the hydrometric data dictionary
-        if not all_null(historical_data_df):
-            # Removing any rows without water level data at the
-            # end of the data frame
-            print(historical_data_df.filter("LEVEL IS NULL"))
-            while not historical_data_df.filter("LEVEL IS NULL"):
-                historical_data_df = historical_data_df.drop(
-                    historical_data_df.tail(1).index
-                )
-            print(historical_data_df["DATE"])
-            # Creating an index with the date in a datetime format
-            #historical_data_df["DATE"] = pd.to_datetime(
-            #    historical_data_df["DATE"]
-            #)
-            #historical_data_df.set_index(["DATE"], inplace=True, drop=True)
-            #historical_data_df.index = historical_data_df.index.date
-            # Adding the data frame to the dictionary
-            hydrometric_data[station] = historical_data_df
-        # If all the data is NaN, the station will be removed from the dataset
-        else:
-            stations_without_data.append(station)
-    # If there is no data for the chosen time period, the station
-    # will be removed from the dataset
-    else:
-        stations_without_data.append(station)
-
-# Removing hydrometric stations without water level data from the station list
-for station in stations_without_data:
-    stations.remove(station)
-
-# Raising an error if no station is left in the list
-if not stations:
-    raise ValueError(
-        f"No water level data is available in the this {num_months}"
-        + " months period for the selected hydrometric stations."
-    )
+hydrometric_data_df.createOrReplaceTempView("tables")
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC <h3>Create Interactive Plots and Graphs</h3>
+# MAGIC %sql
+# MAGIC SELECT DISTINCT STATION_NUMBER 
+# MAGIC FROM tables
 
 # COMMAND ----------
 
@@ -370,9 +297,10 @@ def interactive_plot(station):
     
     # Creation of the plot
     fig, ax = plt.subplots()
+    filtered_df = hydrometric_data_df.filter(hydrometric_data_df.STATION_NUMBER == station)
     line, = plt.plot(
-        hydrometric_data[station].select('DATE').rdd.flatMap(lambda x: x).collect(),
-        hydrometric_data[station].select('LEVEL').rdd.flatMap(lambda x: x).collect(),
+        filtered_df.select('DATE').rdd.flatMap(lambda x: x).collect(),
+        filtered_df.select('LEVEL').rdd.flatMap(lambda x: x).collect(),
         marker="o",
         label="Daily mean",
     )
@@ -381,7 +309,7 @@ def interactive_plot(station):
     ax.set_title(
         fill(
             "Water levels at station {} ({})".format(
-                hydrometric_data[station]["STATION_NAME"][0], station
+                hydrometric_data_df.filter(hydrometric_data_df.STATION_NUMBER == station).select("STATION_NAME")[0], station
             ), 60
         )
     )
@@ -485,29 +413,22 @@ print(tabulate(data_table(station_displayed_t),
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC <h3>Create Interactive Map</h3>
-
-# COMMAND ----------
-
 from pyspark.sql.functions import col
 labels = []
 all_lat = []
 all_lon = []
 for station in stations:
-    latest_data = hydrometric_data[station].tail(1)[0]
-    print(latest_data)
+    latest_data = hydrometric_data_df.filter(hydrometric_data_df.STATION_NUMBER == station).tail(1)[0]
     labels.append(
-        f"{hydrometric_data[station]['STATION_NAME'][0]}\n"
+        f"{latest_data[1]}\n"
         + f"Station ID: {latest_data[0]}\n"
-        + f"Date: {latest_data[1]}\n"
-        + f"Water level: {latest_data[2]} m"
+        + f"Date: {latest_data[2]}\n"
+        + f"Water level: {round(latest_data[3], 2)} m"
     )
     all_lat.append(latest_data.LATITUDE)
     all_lon.append(latest_data.LONGITUDE)
 
 annotations = [None for label in labels]
-print(all_lat)
 m = folium.Map(location=[lat, long])
 feature_group = folium.FeatureGroup("Locations")
 for lt, lng, name in zip(all_lat, all_lon, labels):
@@ -523,15 +444,15 @@ m.save('map.html')
 
 # MAGIC %md
 # MAGIC <h4>Spark DF No Optimization</h4>
-# MAGIC command 7 = 4.23s
-# MAGIC command 8 = 30.96s
-# MAGIC command 9 = 0.45s
-# MAGIC command 10 = 0.13s 
-# MAGIC command 11 = 2.82s 
+# MAGIC command 7 = 4.23
+# MAGIC command 8 = 30.96
+# MAGIC command 9 = 0.45
+# MAGIC command 10 = 0.13 
+# MAGIC command 11 = 2.82 
 # MAGIC 
 # MAGIC <h4>Pandas DF</h4>
-# MAGIC command 7 = 0.04s
-# MAGIC command 8 = 4.74s
-# MAGIC command 9 = 0.3s
-# MAGIC command 10 = 0.03s
-# MAGIC command 11 = 0.09s
+# MAGIC command 7 = 0.04
+# MAGIC command 8 = 4.74
+# MAGIC command 9 = 0.3
+# MAGIC command 10 = 0.03
+# MAGIC command 11 = 0.09
